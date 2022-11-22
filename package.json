@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/aniav/ynab-csv.git"
+    "url": "https://github.com/ipxwork/ynab-csv.git"
   },
   "keywords": [
     "ynab",
@@ -22,9 +22,9 @@
   "author": "Ryan Hall",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/aniav/ynab-csv/issues"
+    "url": "https://github.com/ipxwork/ynab-csv/issues"
   },
-  "homepage": "https://github.com/aniav/ynab-csv",
+  "homepage": "https://github.com/ipxwork/ynab-csv",
   "devDependencies": {
     "browser-sync": "^2.26.7"
   }
