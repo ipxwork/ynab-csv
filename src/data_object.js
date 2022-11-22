@@ -61,6 +61,9 @@ window.DataObject = class DataObject {
   // inverted_outflow: if true, positive values represent outflow while negative values represent inflow
   converted_json(limit, ynab_cols, lookup, useOptions, exchangeOptions) {
     const {invertedOutflow, exchange} = useOptions
+    let {currency, bankCurrency, fallbackRate = 1, rate, from, to} = exchangeOptions
+    
+    if (!fallbackRate) fallbackRate = 1
 
     let value;
     if (this.base_json === null) {
@@ -94,8 +97,6 @@ window.DataObject = class DataObject {
                 tmp_row[col] = cell;
               }
 
-              isExchanged = ""
-
               if (['Inflow', 'Outflow', 'Amount'].includes(col) && tmp_row[col]) {
                 let cellValue = Number(tmp_row[col])
                 if (lookup['Outflow'] == lookup['Inflow'] && col === 'Outflow') {
@@ -110,16 +111,15 @@ window.DataObject = class DataObject {
                 let exchangedValue = cellValue
                 
                 if (exchange) {
-                  let {currency, bankCurrency, fallbackRate = 1, rate, from, to} = exchangeOptions
                   const fromValue = row[from]
                   const toValue = row[to]
-                  let rateValue = Number(row[rate])
+                  let rateValue = row[rate]
 
-                  if (!rateValue) rateValue = 1
-                  if (!fallbackRate) fallbackRate = 1
+                  rateValue = rateValue && !isNaN(Number(rateValue)) ? Number(rateValue) : fallbackRate
   
-                  // console.log('exchange', fromValue, toValue, currency, rateValue, tmp_row[col], cellValue, exchangeOptions, row);
+                  console.log('exchange', fromValue, toValue, currency, rateValue, tmp_row[col], cellValue, exchangeOptions, row);
                   if (bankCurrency === currency) {
+                    isExchanged = ""
                     exchangedValue = cellValue;
                   } else if (fromValue === currency) {
                     isExchanged = `${currency}->${toValue}:${rateValue}`
@@ -128,9 +128,11 @@ window.DataObject = class DataObject {
                     isExchanged = `${fromValue}->${currency}:${rateValue}`
                     exchangedValue = cellValue * rateValue;
                   } else {
-                    isExchanged = `${bankCurrency}->${currency}:${fallbackRate}`
-                    exchangedValue = cellValue * fallbackRate;
+                    isExchanged = `${bankCurrency}->${currency}:${rateValue}`
+                    exchangedValue = cellValue * rateValue;
                   }
+
+                  if (rateValue === 1) isExchanged = ''
                 }
 
                 tmp_row[col] = +exchangedValue.toFixed(2);
