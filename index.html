@@ -34,29 +34,23 @@
 
     <script src="src/data_object.js"></script>
     <script src="src/app.js"></script>
-    <script
-      src="https://browser.sentry-cdn.com/4.4.2/bundle.min.js"
-      crossorigin="anonymous"
-    ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sentry-browser/6.19.7/bundle.min.js" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sentry-tracing/6.19.7/bundle.tracing.min.js" referrerpolicy="no-referrer"></script>
     <script>
       Sentry.init({
-        dsn: "https://9984f4ed07f54d7ca6107525f0d990a1@sentry.io/1362308"
+        dsn: "https://aa935161c87f4534bab1150ee5a2ae43@o4504151861755904.ingest.sentry.io/4504151863590912",
+        integrations: [new Sentry.BrowserTracing()],
+        tracesSampleRate: 1.0,
       });
     </script>
-    <!-- Global site tag (gtag.js) - Google Analytics -->
-
-    <script
-      async
-      src="https://www.googletagmanager.com/gtag/js?id=UA-112130993-1"
-    ></script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9461QNR9QR"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
-      function gtag() {
-        dataLayer.push(arguments);
-      }
-      gtag("js", new Date());
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
 
-      gtag("config", "UA-112130993-1");
+      gtag('config', 'G-9461QNR9QR');
     </script>
   </head>
   <body
@@ -75,7 +69,7 @@
         </div>
         <div class="form-inline">
           <a
-            href="https://github.com/aniav/ynab-csv/issues/new"
+            href="https://github.com/ipxwork/ynab-csv/issues/new"
             target="_blank"
             class="btn btn-secondary"
             ><i class="fa fa-exclamation-circle"></i> Report an issue</a
@@ -142,9 +136,10 @@
                     >
                     </select>
                   </div>
-                  <div class="form-group" ng-if="nonDefaultProfilesExist()">
+                  <div class="form-group">
                     <label for="profile">Bank profile</label>
                     <select
+                      ng-if="nonDefaultProfilesExist()"
                       id="profile"
                       name="ngvalueselect"
                       ng-model="profileName"
@@ -155,6 +150,23 @@
                           {{name}}
                         </option>
                     </select>
+                    <div class="input-group mt-3">
+                      <input
+                       type="text" 
+                       class="form-control"
+                        placeholder="New profile"
+                        ng-model="newProfileName"
+                        >
+                      <div class="input-group-append">
+                        <button 
+                          class="btn btn-primary" 
+                          type="button" 
+                          ng-click="newProfile(newProfileName)"
+                          ng-disabled="!newProfileName">
+                          <i class="fa fa-plus"></i>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -167,22 +179,89 @@
           <div class="card">
             <div class="card-header">
               <div class="float-right">
-                <div
-                  ng-show="ynab_cols.indexOf('Inflow') != -1 && ynab_map['Inflow'] == ynab_map['Outflow']"
-                  class="btn btn-outline-secondary"
-                  ng-click="invert_flows()"
-                >
-                  <i class="fa fa-exchange"></i> Invert flows
+                <div class="custom-control custom-switch d-inline-block">
+                  <input type="checkbox" class="custom-control-input" id="toggleExchange" ng-model="use.exchange">
+                  <label class="custom-control-label" for="toggleExchange">Exchange</label>
                 </div>
-                <div
-                  class="btn btn-outline-secondary"
-                  ng-click="toggleColumnFormat()"
-                >
-                  <i class="fa fa-exchange"></i> Toggle column format
+                <div class="custom-control custom-switch d-inline-block ml-3" ng-if="ynab_cols.indexOf('Inflow') != -1">
+                  <input type="checkbox" class="custom-control-input" id="toggleInvert" ng-model="use.invertedOutflow"
+                    ng-disabled="ynab_map['Inflow'] !== ynab_map['Outflow']">
+                  <label class="custom-control-label" for="toggleInvert">Invert flows</label>
+                </div>
+                <div class="custom-control custom-switch d-inline-block ml-3">
+                  <input type="checkbox" class="custom-control-input" id="toggleAmountColumn" ng-model="use.amountFlow">
+                  <label class="custom-control-label" for="toggleAmountColumn">Amount flow columns</label>
                 </div>
               </div>
               <h4>YNAB Data <small>(first 10 rows)</small></h4>
               <div class="clearfix"></div>
+              <div class="form-inline mt-3 row" ng-if="use.exchange">
+                <div class="form-group col-3">
+                  <label for="id-exchange-currency">Budget currency</label>
+                  <select
+                  class="form-control"
+                  id="id-exchange-currency"
+                  ng-model="exchange.currency"
+                  ng-options="f for f in currencies"
+                  >
+                    <option value="">Choose option</option>
+                  </select>
+                </div>
+                <div class="form-group col-3">
+                  <label for="id-exchange-bank-currency">Bank currency</label>
+                  <select
+                  class="form-control"
+                  id="id-exchange-bank-currency"
+                  ng-model="exchange.bankCurrency"
+                  ng-options="f for f in currencies"
+                  >
+                    <option value="">Choose option</option>
+                  </select>
+                </div>
+                <div class="form-group col-3">
+                  <label for="id-exchange-fallback-rate">Default rate</label>
+                  <input 
+                  type="text"
+                  class="form-control" 
+                  id="id-exchange-fallback-rate"
+                  ng-model="exchange.fallbackRate"
+                  />
+                </div>
+                <div class="col-3"></div>
+                <div class="form-group col-3">
+                  <label for="id-exchange-from">Exchange from</label>
+                  <select
+                  class="form-control"
+                  id="id-exchange-from"
+                  ng-model="exchange.from"
+                  ng-options="f for f in data_object.fields()"
+                  >
+                    <option value="">Choose option</option>
+                  </select>
+                </div>
+                <div class="form-group col-3">
+                  <label for="id-exchange-to">Exchange to</label>
+                  <select
+                  class="form-control"
+                  id="id-exchange-to"
+                  ng-model="exchange.to"
+                  ng-options="f for f in data_object.fields()"
+                  >
+                    <option value="">Choose option</option>
+                  </select>
+                </div>
+                <div class="form-group col-3">
+                  <label for="id-exchange-rate">Exchange rate</label>
+                  <select
+                  class="form-control"
+                  id="id-exchange-rate"
+                  ng-model="exchange.rate"
+                  ng-options="f for f in data_object.fields()"
+                  >
+                    <option value="">Choose option</option>
+                  </select>
+                </div>
+              </div>
             </div>
             <div class="table-container">
               <table class="table table-sm table-striped">

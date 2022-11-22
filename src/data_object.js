@@ -13,8 +13,8 @@ window.DataObject = class DataObject {
       header: true,
       skipEmptyLines: true,
       beforeFirstChunk: function(chunk) {
-        var rows = chunk.split("\n");
-        var startIndex = startAtRow - 1;
+        let rows = chunk.split("\n");
+        let startIndex = startAtRow - 1;
         rows = rows.slice(startIndex);
         return rows.join("\n");
       },
@@ -38,7 +38,7 @@ window.DataObject = class DataObject {
     if (delimiter !== null) {
       config.delimiter = delimiter
     }
-    var result = Papa.parse(csv, config);
+    let result = Papa.parse(csv, config);
     return (this.base_json = result);
   }
 
@@ -59,8 +59,10 @@ window.DataObject = class DataObject {
   // lookup: hash definition of YNAB column names to selected base column names. Lets us
   //     convert the uploaded CSV file into the columns that YNAB expects.
   // inverted_outflow: if true, positive values represent outflow while negative values represent inflow
-  converted_json(limit, ynab_cols, lookup, inverted_outflow = false) {
-    var value;
+  converted_json(limit, ynab_cols, lookup, useOptions, exchangeOptions) {
+    const {invertedOutflow, exchange} = useOptions
+
+    let value;
     if (this.base_json === null) {
       return null;
     }
@@ -68,44 +70,76 @@ window.DataObject = class DataObject {
     // TODO: You might want to check for errors. Papaparse has an errors field.
     if (this.base_json.data) {
       this.base_json.data.forEach(function (row, index) {
-        var tmp_row;
+        let tmp_row, isExchanged;
         if (!limit || index < limit) {
+          isExchanged = ""
           tmp_row = {};
           ynab_cols.forEach(function (col) {
-            var cell;
+            let cell;
             cell = row[lookup[col]];
             // Some YNAB columns need special formatting,
             //   the rest are just returned as they are.
             if (cell) {
-              switch (col) {
-                case "Outflow":
-
-                  if (lookup['Outflow'] == lookup['Inflow']) {
-                    if (!inverted_outflow) {
-                      tmp_row[col] = cell.startsWith('-') ? cell.slice(1) : "";
-                    } else {
-                      tmp_row[col] = cell.startsWith('-') ? "" : cell;
-                    }
+              if (['Outflow', 'Inflow'].includes(col)) {
+                if (lookup['Outflow'] == lookup['Inflow']) {
+                  if (invertedOutflow === (col === 'Outflow')) {
+                    tmp_row[col] = cell.startsWith('-') ? "" : cell;
                   } else {
-                    tmp_row[col] = cell.startsWith('-') ? cell.slice(1) : cell;
+                    tmp_row[col] = cell.startsWith('-') ? cell.slice(1) : "";
                   }
-                  break;
-                case "Inflow":
-                  if (lookup['Outflow'] == lookup['Inflow']) {
-                    if (!inverted_outflow) {
-                      tmp_row[col] = cell.startsWith('-') ? "" : cell;
-                    } else {
-                      tmp_row[col] = cell.startsWith('-') ? cell.slice(1) : "";
-                    }
-                  } else {
-                    tmp_row[col] = cell;
-                  }
-                  break;
-                default:
+                } else {
                   tmp_row[col] = cell;
+                }
+              } else {
+                tmp_row[col] = cell;
+              }
+
+              isExchanged = ""
+
+              if (['Inflow', 'Outflow', 'Amount'].includes(col) && tmp_row[col]) {
+                let cellValue = Number(tmp_row[col])
+                if (lookup['Outflow'] == lookup['Inflow'] && col === 'Outflow') {
+                  cellValue *= -1
+                }
+
+                if (isNaN(cellValue)) {
+                  tmp_row[col] = ''
+                  return
+                }
+
+                let exchangedValue = cellValue
+                
+                if (exchange) {
+                  let {currency, bankCurrency, fallbackRate = 1, rate, from, to} = exchangeOptions
+                  const fromValue = row[from]
+                  const toValue = row[to]
+                  let rateValue = Number(row[rate])
+
+                  if (!rateValue) rateValue = 1
+                  if (!fallbackRate) fallbackRate = 1
+  
+                  // console.log('exchange', fromValue, toValue, currency, rateValue, tmp_row[col], cellValue, exchangeOptions, row);
+                  if (bankCurrency === currency) {
+                    exchangedValue = cellValue;
+                  } else if (fromValue === currency) {
+                    isExchanged = `${currency}->${toValue}:${rateValue}`
+                    exchangedValue = cellValue / rateValue;
+                  } else if (toValue === currency) {
+                    isExchanged = `${fromValue}->${currency}:${rateValue}`
+                    exchangedValue = cellValue * rateValue;
+                  } else {
+                    isExchanged = `${bankCurrency}->${currency}:${fallbackRate}`
+                    exchangedValue = cellValue * fallbackRate;
+                  }
+                }
+
+                tmp_row[col] = +exchangedValue.toFixed(2);
               }
             }
           });
+          if (isExchanged) {
+            tmp_row["Memo"] = `[${isExchanged}] ${tmp_row["Memo"] || ""}`
+          }
           value.push(tmp_row);
         }
       });
@@ -113,21 +147,24 @@ window.DataObject = class DataObject {
     return value;
   }
 
-  converted_csv(limit, ynab_cols, lookup, inverted_outflow) {
-    var string;
+  converted_csv(limit, ynab_cols, lookup, useOptions, exchangeOptions) {
+    const {invertedOutflow, exchange} = useOptions
+    let string;
     if (this.base_json === null) {
       return nil;
     }
     // Papa.unparse string
     string = '"' + ynab_cols.join('","') + '"\n';
-    this.converted_json(limit, ynab_cols, lookup, inverted_outflow).forEach(function (row) {
-      var row_values;
+    this.converted_json(limit, ynab_cols, lookup, useOptions, exchangeOptions).forEach(function (row) {
+      let row_values;
       row_values = [];
       ynab_cols.forEach(function (col) {
-        var row_value;
+        let row_value;
         row_value = row[col] || "";
         // escape text which might already have a quote in it
-        row_value = row_value.replace(/"/g, '""').trim();
+        if (typeof row_value === 'string') {
+          row_value = row_value.replace(/"/g, '""').trim();
+        }
         return row_values.push(row_value);
       });
       return (string += '"' + row_values.join('","') + '"\n');

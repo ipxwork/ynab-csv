@@ -16,20 +16,43 @@ var delimiters = [
   ";",
   "|"
 ]
-var old_ynab_cols = ["Date", "Payee", "Memo", "Outflow", "Inflow"];
-var new_ynab_cols = ["Date", "Payee", "Memo", "Amount"];
+var currencies = [
+  "USD","CAD","EUR","AED","AFN","ALL","AMD","ARS","AUD","AZN","BAM","BDT",
+  "BGN","BHD","BIF","BND","BOB","BRL","BWP","BYN","BZD","CDF","CHF","CLP",
+  "CNY","COP","CRC","CVE","CZK","DJF","DKK","DOP","DZD","EEK","EGP","ERN",
+  "ETB","GBP","GEL","GHS","GNF","GTQ","HKD","HNL","HRK","HUF","IDR","ILS",
+  "INR","IQD","IRR","ISK","JMD","JOD","JPY","KES","KHR","KMF","KRW","KWD",
+  "KZT","LBP","LKR","LTL","LVL","LYD","MAD","MDL","MGA","MKD","MMK","MOP",
+  "MUR","MXN","MYR","MZN","NAD","NGN","NIO","NOK","NPR","NZD","OMR","PAB",
+  "PEN","PHP","PKR","PLN","PYG","QAR","RON","RSD","RUB","RWF","SAR","SDG",
+  "SEK","SGD","SOS","SYP","THB","TND","TOP","TRY","TTD","TWD","TZS","UAH",
+  "UGX","UYU","UZS","VEF","VND","XAF","XOF","YER","ZAR","ZMK","ZWL"
+]
+var flow_cols = ["Date", "Payee", "Memo", "Outflow", "Inflow"];
+var amount_cols = ["Date", "Payee", "Memo", "Amount"];
 var defaultProfile = {
-  columnFormat: old_ynab_cols,
-  chosenColumns: old_ynab_cols.reduce(function (acc, val) {
+  columnFormat: flow_cols,
+  chosenColumns: flow_cols.reduce(function (acc, val) {
     acc[val] = val;
     return acc;
   }, {}),
+  useOptions: {
+    exchange: false,
+    amountFlow: false,
+    invertedOutflow: false,
+  },
+  exchangeOptions: {
+    currency: "USD",
+    bankCurrency: "USD",
+    fallbackRate: 1,
+    rate: null
+  },
   chosenEncoding: "UTF-8",
   chosenDelimiter: "auto",
   startAtRow: 1
 };
 var defaultProfiles = {
-  "default profile": defaultProfile
+  "default": defaultProfile
 };
 
 Date.prototype.yyyymmdd = function () {
@@ -140,7 +163,7 @@ angular.element(document).ready(function () {
     $scope.angular_loaded = true;
 
     $scope.setInitialScopeState = function () {
-      $scope.profileName = ($location.search().profile || localStorage.getItem('profileName') || 'default profile').toLowerCase();
+      $scope.profileName = ($location.search().profile || localStorage.getItem('profileName') || 'default').toLowerCase();
       $scope.profiles = JSON.parse(localStorage.getItem('profiles')) || defaultProfiles;
       if(!$scope.profiles[$scope.profileName]) {
         $scope.profiles[$scope.profileName] = defaultProfile;
@@ -149,49 +172,60 @@ angular.element(document).ready(function () {
       $scope.ynab_cols = $scope.profile.columnFormat;
       $scope.data = {};
       $scope.ynab_map = $scope.profile.chosenColumns
-      $scope.inverted_outflow = false;
+      $scope.exchange = $scope.profile.exchangeOptions || defaultProfile.exchangeOptions
+      $scope.use = $scope.profile.useOptions
       $scope.file = {
         encodings: encodings,
         delimiters: delimiters,
-        chosenEncoding: $scope.profile.chosenEncoding || "UTF-8",
-        chosenDelimiter: $scope.profile.chosenDelimiter || "auto",
+        chosenEncoding: $scope.profile.chosenEncoding || defaultProfile.chosenEncoding,
+        chosenDelimiter: $scope.profile.chosenDelimiter || defaultProfile.chosenDelimiter,
         startAtRow: $scope.profile.startAtRow
       };
       $scope.data_object = new DataObject();
+      $scope.currencies = currencies;
     }
 
     $scope.setInitialScopeState();
     $scope.profileChosen = function (profileName) {
       $location.search('profile', profileName);
       $scope.profile = $scope.profiles[$scope.profileName];
-      $scope.ynab_cols = $scope.profile.columnFormat;
-      $scope.ynab_map = $scope.profile.chosenColumns;
       localStorage.setItem('profileName', profileName);
+      $scope.setInitialScopeState()
     };
+    $scope.newProfile = function (profileName) {
+      if (!profileName) return
+      $location.search('profile', profileName);
+      $scope.profile = $scope.profiles[$scope.profileName];
+      localStorage.setItem('profileName', profileName);
+      $scope.setInitialScopeState()
+      $scope.newProfileName = ''
+    }
     $scope.encodingChosen = function (encoding) {
       $scope.profile.chosenEncoding = encoding;
-      localStorage.setItem('profiles', JSON.stringify($scope.profiles));
+      $scope.saveProfile()
     };
     $scope.delimiterChosen = function (delimiter) {
       $scope.profile.chosenDelimiter = delimiter;
-      localStorage.setItem('profiles', JSON.stringify($scope.profiles));
+      $scope.saveProfile()
     };
     $scope.startRowSet = function (startAtRow) {
       $scope.profile.startAtRow = startAtRow;
-      localStorage.setItem('profiles', JSON.stringify($scope.profiles));
+      $scope.saveProfile()
     };
     $scope.nonDefaultProfilesExist = function() {
       return Object.keys($scope.profiles).length > 1;
     };
-    $scope.toggleColumnFormat = function () {
-      if ($scope.ynab_cols == new_ynab_cols) {
-        $scope.ynab_cols = old_ynab_cols;
-      } else {
-        $scope.ynab_cols = new_ynab_cols;
-      }
-      $scope.profile.columnFormat = $scope.ynab_cols
-      localStorage.setItem('profiles', JSON.stringify($scope.profiles));
+    $scope.toggleExchange = function () {
+      $scope.use.exchange = !$scope.use.exchange;
+      $scope.profile.useOptions.exchange = $scope.use.exchange
+      $scope.saveProfile()
     };
+    $scope.updatePreview = function () {
+      $scope.preview = $scope.data_object.converted_json(10, $scope.ynab_cols, $scope.ynab_map, $scope.use, $scope.exchange);
+    },
+    $scope.saveProfile = function () {
+      localStorage.setItem('profiles', JSON.stringify($scope.profiles));
+    },
     $scope.$watch("data.source", function (newValue, oldValue) {
       if (newValue && newValue.length > 0) {
         if ($scope.file.chosenDelimiter == "auto") {
@@ -199,31 +233,63 @@ angular.element(document).ready(function () {
         } else {
           $scope.data_object.parseCsv(newValue, $scope.file.chosenEncoding, $scope.file.startAtRow, $scope.file.chosenDelimiter);
         }
-        $scope.preview = $scope.data_object.converted_json(10, $scope.ynab_cols, $scope.ynab_map, $scope.inverted_outflow);
+        $scope.updatePreview();
       }
     });
-    $scope.$watch("inverted_outflow", function (newValue, oldValue) {
+    $scope.$watch("use.invertedOutflow", function (newValue, oldValue) {
       if (newValue != oldValue) {
-        $scope.preview = $scope.data_object.converted_json(10, $scope.ynab_cols, $scope.ynab_map, $scope.inverted_outflow);
+        $scope.use.invertedOutflow = newValue;
+        $scope.profile.useOptions.invertedOutflow = $scope.use.invertedOutflow;
+        $scope.saveProfile();
+        $scope.updatePreview();
+      }
+    });
+    $scope.$watch("use.amountFlow", function (newValue, oldValue) {
+      if (newValue != oldValue) {
+          if (newValue) {
+            $scope.ynab_cols = flow_cols;
+          } else {
+            $scope.ynab_cols = amount_cols;
+          }
+          $scope.profile.columnFormat = $scope.ynab_cols;
+
+          $scope.use.amountFlow = newValue;
+          $scope.profile.useOptions.amountFlow = $scope.use.amountFlow;
+          $scope.saveProfile();
+          $scope.updatePreview();
+        }
+    });
+    $scope.$watch('use.exchange', function (newValue, oldValue) {
+      if (newValue != oldValue) {
+        $scope.use.exchange = newValue;
+        $scope.profile.useOptions.exchange = $scope.use.exchange;
+        $scope.saveProfile();
+        $scope.updatePreview();
       }
     });
     $scope.$watch(
       "ynab_map",
       function (newValue, oldValue) {
         $scope.profile.chosenColumns = newValue;
-        localStorage.setItem('profiles', JSON.stringify($scope.profiles));
-        $scope.preview = $scope.data_object.converted_json(10, $scope.ynab_cols, newValue, $scope.inverted_outflow);
+        $scope.saveProfile()
+        $scope.updatePreview();
+      },
+      true
+    );
+    $scope.$watch(
+      "exchange",
+      function (newValue, oldValue) {
+        $scope.profile.exchangeOptions = newValue;
+        $scope.saveProfile()
+        $scope.updatePreview();
       },
       true
     );
     $scope.csvString = function () {
-      return $scope.data_object.converted_csv(null, $scope.ynab_cols, $scope.ynab_map, $scope.inverted_outflow);
+      return $scope.data_object.converted_csv(null, $scope.ynab_cols, $scope.ynab_map, $scope.use.invertedOutflow, $scope.exchange);
     };
     $scope.reloadApp = function () {
       $scope.setInitialScopeState();
-    }
-    $scope.invert_flows = function () {
-      $scope.inverted_outflow = !$scope.inverted_outflow;
     }
     $scope.downloadFile = function () {
       var a;
