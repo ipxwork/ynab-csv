@@ -99,13 +99,29 @@ window.DataObject = class DataObject {
 
               if (['Inflow', 'Outflow', 'Amount'].includes(col) && tmp_row[col]) {
                 let cellValue = Number(tmp_row[col])
-                if (lookup['Outflow'] == lookup['Inflow'] && col === 'Outflow') {
-                  cellValue *= -1
-                }
 
                 if (isNaN(cellValue)) {
-                  tmp_row[col] = ''
-                  return
+                  cellValue = tmp_row[col].replace(/[^\d\.,-]/g, "");
+                  const periodIndex = cellValue.indexOf(".");
+                  const commaIndex = cellValue.indexOf(",");
+                  if (commaIndex !== -1 && periodIndex !== -1) {
+                    if (commaIndex > periodIndex) {
+                      cellValue = cellValue.replace(/\./g, "").replace(",", ".");
+                    } else {
+                      cellValue = cellValue.replace(/,/g, "");
+                    }
+                  } else if (commaIndex !== -1) {
+                    cellValue = cellValue.replace(",", ".");
+                  }
+                  cellValue = Number(cellValue);
+                }
+                if (isNaN(cellValue)) {
+                  tmp_row[col] = "";
+                  return;
+                }
+
+                if (lookup['Outflow'] == lookup['Inflow'] && col === 'Outflow') {
+                  cellValue *= -1
                 }
 
                 let exchangedValue = cellValue
@@ -117,7 +133,7 @@ window.DataObject = class DataObject {
 
                   rateValue = rateValue && !isNaN(Number(rateValue)) ? Number(rateValue) : fallbackRate
   
-                  console.log('exchange', fromValue, toValue, currency, rateValue, tmp_row[col], cellValue, exchangeOptions, row);
+                  // console.log('exchange', fromValue, toValue, currency, rateValue, tmp_row[col], cellValue, exchangeOptions, row);
                   if (bankCurrency === currency) {
                     isExchanged = ""
                     exchangedValue = cellValue;

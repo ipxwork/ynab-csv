@@ -163,6 +163,7 @@ angular.element(document).ready(function () {
     $scope.angular_loaded = true;
 
     $scope.setInitialScopeState = function () {
+      $scope.newProfileName = ''
       $scope.profileName = ($location.search().profile || localStorage.getItem('profileName') || 'default').toLowerCase();
       $scope.profiles = JSON.parse(localStorage.getItem('profiles')) || defaultProfiles;
       if(!$scope.profiles[$scope.profileName]) {
@@ -192,13 +193,10 @@ angular.element(document).ready(function () {
       localStorage.setItem('profileName', profileName);
       $scope.setInitialScopeState()
     };
-    $scope.newProfile = function (profileName) {
-      if (!profileName) return
-      $location.search('profile', profileName);
-      $scope.profile = $scope.profiles[$scope.profileName];
-      localStorage.setItem('profileName', profileName);
-      $scope.setInitialScopeState()
-      $scope.newProfileName = ''
+    $scope.newProfile = function (newProfileName) {
+      if (!newProfileName) return
+      $scope.profileName = newProfileName
+      $scope.profileChosen(newProfileName)
     }
     $scope.encodingChosen = function (encoding) {
       $scope.profile.chosenEncoding = encoding;
