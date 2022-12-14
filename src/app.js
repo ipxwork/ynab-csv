@@ -31,8 +31,8 @@ var currencies = [
 var flow_cols = ["Date", "Payee", "Memo", "Outflow", "Inflow"];
 var amount_cols = ["Date", "Payee", "Memo", "Amount"];
 var defaultProfile = {
-  columnFormat: flow_cols,
-  chosenColumns: flow_cols.reduce(function (acc, val) {
+  columnFormat: amount_cols,
+  chosenColumns: amount_cols.reduce(function (acc, val) {
     acc[val] = val;
     return acc;
   }, {}),
@@ -142,6 +142,7 @@ angular.element(document).ready(function () {
             if (!data) return;
 
             data.getAsString(function(text) {
+              if (String(text).split('\n').length > 1 || !isNaN(Number(text))) return
               scope.$apply(function () {
                 scope.dropzone = text;
               });

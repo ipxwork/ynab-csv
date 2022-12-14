@@ -63,7 +63,15 @@ window.DataObject = class DataObject {
     const {invertedOutflow, exchange} = useOptions
     let {currency, bankCurrency, fallbackRate = 1, rate, from, to} = exchangeOptions
     
-    if (!fallbackRate) fallbackRate = 1
+    if (!fallbackRate) {
+      fallbackRate = 1;
+    } else {
+      fallbackRate = Number(fallbackRate);
+    }
+
+    if (!currency) {
+      currency = bankCurrency
+    }
 
     let value;
     if (this.base_json === null) {
@@ -143,6 +151,14 @@ window.DataObject = class DataObject {
                   } else if (toValue === currency) {
                     isExchanged = `${fromValue}->${currency}:${rateValue}`
                     exchangedValue = cellValue * rateValue;
+                  } else if (fromValue !== toValue) {
+                    isExchanged = `${fromValue}->${toValue}:${rateValue}|${currency}:${fallbackRate}`
+                    exchangedValue = cellValue * rateValue;
+                    if (toValue === bankCurrency) {
+                      exchangedValue = cellValue * rateValue * fallbackRate;
+                    } else if (fromValue === bankCurrency) {
+                      exchangedValue = cellValue * fallbackRate;
+                    }
                   } else {
                     isExchanged = `${bankCurrency}->${currency}:${rateValue}`
                     exchangedValue = cellValue * rateValue;
