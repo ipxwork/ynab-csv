@@ -285,7 +285,7 @@ angular.element(document).ready(function () {
       true
     );
     $scope.csvString = function () {
-      return $scope.data_object.converted_csv(null, $scope.ynab_cols, $scope.ynab_map, $scope.use.invertedOutflow, $scope.exchange);
+      return $scope.data_object.converted_csv(null, $scope.ynab_cols, $scope.ynab_map, $scope.use, $scope.exchange);
     };
     $scope.reloadApp = function () {
       $scope.setInitialScopeState();

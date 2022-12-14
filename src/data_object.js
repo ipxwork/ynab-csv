@@ -164,7 +164,7 @@ window.DataObject = class DataObject {
                     exchangedValue = cellValue * rateValue;
                   }
 
-                  if (rateValue === 1) isExchanged = ''
+                  if (exchangedValue == cellValue) isExchanged = ''
                 }
 
                 tmp_row[col] = +exchangedValue.toFixed(2);
